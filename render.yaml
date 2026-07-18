@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: first-week-ratings
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: "true"
+    startCommand: node server.js
+    healthCheckPath: /health
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: FACTORIAL_BASE
+        value: https://api.eu2.demo.factorial.dev/api/2026-07-01
+      - key: FACTORIAL_API_KEY
+        sync: false
+      - key: TOKEN_SECRET
+        generateValue: true
+      - key: APP_URL
+        sync: false
+      - key: STATE_FILE
+        value: /data/state.json
+      - key: RUN_POLLER_EVERY_HOURS
+        value: "6"

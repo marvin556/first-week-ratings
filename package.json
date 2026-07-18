@@ -1,0 +1,12 @@
+{
+  "name": "first-week-ratings",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Manager ratings for a new hire's first five days, stored in Factorial",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "poll": "node poller.js"
+  },
+  "engines": { "node": ">=18" }
+}

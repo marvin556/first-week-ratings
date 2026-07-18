@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Day rating - Factorial</title>
+<style>
+  :root { --accent:#FF355E; --accent-dark:#e02950; --ink:#1c1b29; --grey:#6f6e77; --line:#e9e8ee; --bg:#f7f6f9; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; align-items:center; }
+  .topbar { width:100%; background:#fff; border-bottom:1px solid var(--line); padding:14px 24px; display:flex; align-items:center; gap:10px; }
+  .logo-mark { width:26px; height:26px; border-radius:7px; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px; }
+  .topbar span { font-weight:700; font-size:15px; }
+  .wrap { width:100%; max-width:480px; padding:36px 20px 60px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:32px 28px; box-shadow:0 6px 24px rgba(28,27,41,.06); }
+  .chip { display:inline-block; background:#ffe9ee; color:var(--accent-dark); font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px; margin-bottom:14px; }
+  h1 { font-size:21px; line-height:1.3; margin-bottom:6px; }
+  .sub { color:var(--grey); font-size:14px; margin-bottom:26px; }
+  .progress { display:flex; gap:6px; margin-bottom:26px; }
+  .progress i { flex:1; height:5px; border-radius:3px; background:var(--line); }
+  .progress i.done { background:var(--accent); opacity:.35; }
+  .progress i.today { background:var(--accent); }
+  .label { font-size:14px; font-weight:600; margin-bottom:12px; }
+  .stars { display:flex; gap:8px; margin-bottom:8px; }
+  .star { width:52px; height:52px; border:1px solid var(--line); border-radius:12px; background:#fff; cursor:pointer; font-size:26px; color:#d4d3db; transition:all .12s ease; display:flex; align-items:center; justify-content:center; }
+  .star:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .star.on { color:#ffb400; border-color:var(--accent); background:#fff7f9; }
+  .star-caption { font-size:13px; color:var(--grey); height:18px; margin-bottom:22px; }
+  textarea { width:100%; border:1px solid var(--line); border-radius:12px; padding:12px 14px; font:inherit; font-size:14px; resize:vertical; min-height:84px; margin-bottom:22px; color:var(--ink); }
+  textarea:focus { outline:none; border-color:var(--accent); }
+  .btn { width:100%; background:var(--accent); color:#fff; border:none; border-radius:12px; padding:14px; font-size:15px; font-weight:700; cursor:pointer; }
+  .btn:hover { background:var(--accent-dark); }
+  .btn:disabled { background:#f0aebd; cursor:not-allowed; }
+  .foot { text-align:center; font-size:12px; color:var(--grey); margin-top:18px; }
+  .done-state { text-align:center; display:none; padding:26px 0 10px; }
+  .done-state .tick { width:62px; height:62px; border-radius:50%; background:#ffe9ee; color:var(--accent); font-size:30px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:16px; }
+  .done-state h2 { font-size:19px; margin-bottom:6px; }
+  .done-state p { color:var(--grey); font-size:14px; }
+  .privacy { margin-top:16px; font-size:12px; color:var(--grey); background:var(--bg); border-radius:10px; padding:10px 14px; line-height:1.5; }
+  .error { color:#c0392b; font-size:13px; margin-bottom:12px; display:none; }
+</style>
+</head>
+<body>
+  <div class="topbar"><span class="logo-mark">F</span><span>Factorial</span></div>
+  <div class="wrap">
+    <div class="card">
+      <div id="form-state">
+        <span class="chip">DAY {{DAY}} OF {{TOTAL}} &middot; {{DATE}}</span>
+        <h1>How did {{NAME}}'s day go?</h1>
+        <p class="sub">You are rating day {{DAY}} of {{FIRST_NAME}}'s first week. Takes less than a minute.</p>
+        <div class="progress">{{PROGRESS}}</div>
+        <div class="label">Rating</div>
+        <div class="stars" id="stars">
+          <button class="star" data-v="1" aria-label="1 star">&#9733;</button>
+          <button class="star" data-v="2" aria-label="2 stars">&#9733;</button>
+          <button class="star" data-v="3" aria-label="3 stars">&#9733;</button>
+          <button class="star" data-v="4" aria-label="4 stars">&#9733;</button>
+          <button class="star" data-v="5" aria-label="5 stars">&#9733;</button>
+        </div>
+        <div class="star-caption" id="caption">&nbsp;</div>
+        <div class="label">Comment <span style="color:var(--grey);font-weight:400">(optional)</span></div>
+        <textarea id="comment" placeholder="Anything worth noting about today?"></textarea>
+        <div class="error" id="error">Something went wrong. Please try again.</div>
+        <button class="btn" id="submit" disabled>Submit rating</button>
+        <div class="privacy">Your rating is stored securely in Factorial and visible to HR only. It is not visible to {{FIRST_NAME}}.</div>
+      </div>
+      <div class="done-state" id="done-state">
+        <div class="tick">&#10003;</div>
+        <h2>Day {{DAY}} saved</h2>
+        <p>Thanks! Your rating has been stored in Factorial<br>and the task has been marked as done.</p>
+      </div>
+    </div>
+    <div class="foot">Delivered by Faqtic &middot; powered by the Factorial API</div>
+  </div>
+<script>
+  const captions = {1:"Poor day",2:"Below expectations",3:"Okay",4:"Good day",5:"Excellent day"};
+  let value = 0;
+  const stars = document.querySelectorAll('.star');
+  const submitBtn = document.getElementById('submit');
+  stars.forEach(s => s.addEventListener('click', () => {
+    value = +s.dataset.v;
+    stars.forEach(x => x.classList.toggle('on', +x.dataset.v <= value));
+    document.getElementById('caption').textContent = captions[value];
+    submitBtn.disabled = false;
+  }));
+  submitBtn.addEventListener('click', async () => {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving...';
+    try {
+      const res = await fetch('/api/submit', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token: "{{TOKEN}}", rating: value, comment: document.getElementById('comment').value }),
+      });
+      if (!res.ok) throw new Error('submit failed');
+      document.getElementById('form-state').style.display = 'none';
+      document.getElementById('done-state').style.display = 'block';
+    } catch (e) {
+      document.getElementById('error').style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit rating';
+    }
+  });
+</script>
+</body>
+</html>

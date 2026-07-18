@@ -1,0 +1,15 @@
+{
+  "company_id": "125058",
+  "trigger_field_id": "2071076",
+  "schema_id": "7029",
+  "fields": {
+    "day_number": "2071077",
+    "shift_date": "2071078",
+    "rating": "2071079",
+    "comment": "2071080",
+    "rated_by": "2071081",
+    "submitted_at": "2071082"
+  },
+  "days_to_rate": 5,
+  "task_category": "performance"
+}
