@@ -1,17 +1,13 @@
 {
   "company_id": "125058",
   "trigger_field_id": "2071076",
-  "schema_id": "7030",
-  "day_fields": {
-    "1": { "rating": "2071100", "comment": "2071101" },
-    "2": { "rating": "2071102", "comment": "2071103" },
-    "3": { "rating": "2071104", "comment": "2071105" },
-    "4": { "rating": "2071106", "comment": "2071107" },
-    "5": { "rating": "2071108", "comment": "2071109" }
-  },
-  "row_fields": {
-    "rated_by": "2071110",
-    "first_shift_date": "2071111"
+  "schema_id": "7031",
+  "fields": {
+    "day": "2071252",
+    "date": "2071253",
+    "rating": "2071254",
+    "comment": "2071255",
+    "rated_by": "2071256"
   },
   "days_to_rate": 5,
   "task_category": "performance"

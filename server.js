@@ -64,34 +64,23 @@ async function handleSubmit(res, body) {
   const manager = await api.get(`employees/employees/${t.m}`);
   const emp = await api.get(`employees/employees/${t.e}`);
 
-  // 1. One row per employee: find their existing record, otherwise create it
-  state.rows = state.rows || {};
-  let rowId = state.rows[t.e];
-  if (!rowId) {
-    // recover from Factorial in case state was lost
-    // NOTE: server-side schema_id filters are ignored on these endpoints; filter client-side
-    const existing = (await api.getAll('custom_resources/resources'))
-      .find(res => String(res.attachable_id) === String(t.e) && String(res.schema_id) === String(cfg.schema_id));
-    if (existing) rowId = existing.id;
-  }
-  const writes = [];
-  if (!rowId) {
-    const first = await api.post('custom_resources/values', {
-      schema_id: cfg.schema_id, employee_id: t.e,
-      field_id: cfg.row_fields.first_shift_date, value: t.f || t.date,
-    });
-    rowId = first.resource_id;
-    writes.push([cfg.row_fields.rated_by, manager.full_name]);
-  }
-  state.rows[t.e] = rowId;
-
-  // 2. Day-specific values go into that same row
-  const day = cfg.day_fields[String(t.d)];
-  writes.push([day.rating, String(r)]);
-  if (comment && String(comment).trim()) writes.push([day.comment, String(comment).trim().slice(0, 2000)]);
-  for (const [field_id, value] of writes) {
-    await api.post('custom_resources/values', {
-      schema_id: cfg.schema_id, employee_id: t.e, custom_resource_id: rowId, field_id, value,
+  // 1. Create the row for this day (one row per day). The first call creates the
+  //    record; the remaining cells attach to it via custom_fields/values with
+  //    valuable_type CustomResources::Value - posting more custom_resources/values
+  //    would render as separate rows in the Factorial UI.
+  const row = await api.post('custom_resources/values', {
+    schema_id: cfg.schema_id, employee_id: t.e, field_id: cfg.fields.day, value: `Day ${t.d}`,
+  });
+  const rowId = row.id;
+  const cells = [
+    [cfg.fields.date, t.date],
+    [cfg.fields.rating, String(r)],
+    [cfg.fields.rated_by, manager.full_name],
+  ];
+  if (comment && String(comment).trim()) cells.push([cfg.fields.comment, String(comment).trim().slice(0, 2000)]);
+  for (const [field_id, value] of cells) {
+    await api.post('custom_fields/values', {
+      field_id, valuable_type: 'CustomResources::Value', valuable_id: String(rowId), value,
     });
   }
 
