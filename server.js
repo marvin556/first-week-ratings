@@ -64,19 +64,31 @@ async function handleSubmit(res, body) {
   const manager = await api.get(`employees/employees/${t.m}`);
   const emp = await api.get(`employees/employees/${t.e}`);
 
-  // 1. Write the row: first value creates the record, rest attach to it
-  const first = await api.post('custom_resources/values', {
-    schema_id: cfg.schema_id, employee_id: t.e, field_id: cfg.fields.day_number, value: String(t.d),
-  });
-  const rowId = first.resource_id;
-  const rest = [
-    [cfg.fields.shift_date, t.date],
-    [cfg.fields.rating, String(r)],
-    [cfg.fields.rated_by, manager.full_name],
-    [cfg.fields.submitted_at, new Date().toISOString().slice(0, 10)],
-  ];
-  if (comment && String(comment).trim()) rest.push([cfg.fields.comment, String(comment).trim().slice(0, 2000)]);
-  for (const [field_id, value] of rest) {
+  // 1. One row per employee: find their existing record, otherwise create it
+  state.rows = state.rows || {};
+  let rowId = state.rows[t.e];
+  if (!rowId) {
+    // recover from Factorial in case state was lost
+    const existing = (await api.getAll('custom_resources/values', { schema_id: cfg.schema_id }))
+      .find(v => String(v.attachable_id) === String(t.e));
+    if (existing) rowId = existing.resource_id;
+  }
+  const writes = [];
+  if (!rowId) {
+    const first = await api.post('custom_resources/values', {
+      schema_id: cfg.schema_id, employee_id: t.e,
+      field_id: cfg.row_fields.first_shift_date, value: t.f || t.date,
+    });
+    rowId = first.resource_id;
+    writes.push([cfg.row_fields.rated_by, manager.full_name]);
+  }
+  state.rows[t.e] = rowId;
+
+  // 2. Day-specific values go into that same row
+  const day = cfg.day_fields[String(t.d)];
+  writes.push([day.rating, String(r)]);
+  if (comment && String(comment).trim()) writes.push([day.comment, String(comment).trim().slice(0, 2000)]);
+  for (const [field_id, value] of writes) {
     await api.post('custom_resources/values', {
       schema_id: cfg.schema_id, employee_id: t.e, custom_resource_id: rowId, field_id, value,
     });

@@ -76,7 +76,7 @@ async function run() {
       if (existing && (existing.due_on === days[i] || state.submitted[key])) { skipped++; continue; }
 
       const token = sign({
-        e: emp.id, d: dayNum, date: days[i], m: manager.id,
+        e: emp.id, d: dayNum, date: days[i], m: manager.id, f: days[0],
         exp: Math.floor(new Date(days[i] + 'T00:00:00Z').getTime() / 1000) + 14 * 86400,
       });
       const link = `${APP_URL}/rate/${token}`;
