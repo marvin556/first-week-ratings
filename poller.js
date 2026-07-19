@@ -40,6 +40,7 @@ async function run() {
   // 2. Existing tasks, to dedupe by name even if the state file was lost
   const allTasks = await api.getAll('tasks/tasks');
   const tasksByName = new Map(allTasks.filter(t => t.status !== 'discarded').map(t => [t.name, t]));
+  const tasksById = new Map(allTasks.map(t => [String(t.id), t]));
 
   // 3. All values of the trigger field
   const values = (await api.getAll('custom_fields/values', { field_id: cfg.trigger_field_id }))
@@ -58,6 +59,12 @@ async function run() {
       const key = `${emp.id}-${dayNum}`;
       const name = taskName(dayNum, emp.full_name);
       let existing = state.tasks[key];
+
+      // Self-heal: if the task in our state was discarded or deleted in Factorial, forget it
+      if (existing) {
+        const live = tasksById.get(String(existing.taskId));
+        if (!live || live.status === 'discarded') { delete state.tasks[key]; existing = undefined; }
+      }
 
       // Recover task reference from Factorial if state was lost
       if (!existing && tasksByName.has(name)) {
