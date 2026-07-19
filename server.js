@@ -69,9 +69,10 @@ async function handleSubmit(res, body) {
   let rowId = state.rows[t.e];
   if (!rowId) {
     // recover from Factorial in case state was lost
-    const existing = (await api.getAll('custom_resources/values', { schema_id: cfg.schema_id }))
-      .find(v => String(v.attachable_id) === String(t.e));
-    if (existing) rowId = existing.resource_id;
+    // NOTE: server-side schema_id filters are ignored on these endpoints; filter client-side
+    const existing = (await api.getAll('custom_resources/resources'))
+      .find(res => String(res.attachable_id) === String(t.e) && String(res.schema_id) === String(cfg.schema_id));
+    if (existing) rowId = existing.id;
   }
   const writes = [];
   if (!rowId) {
@@ -99,7 +100,7 @@ async function handleSubmit(res, body) {
   if (taskRef) {
     try {
       await api.put(`tasks/tasks/${taskRef.taskId}`, {
-        name: `Rate day ${t.d} of ${cfg.days_to_rate} - ${emp.full_name}`, status: 'done', due_on: t.date,
+        name: `New Hire: Rate day ${t.d} of ${cfg.days_to_rate} - ${emp.full_name}`, status: 'done', due_on: t.date,
       });
     } catch (e) { console.warn('Could not mark task done:', e.message); }
   }

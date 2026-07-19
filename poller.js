@@ -28,7 +28,7 @@ function workingDays(firstShift, count) {
   return days;
 }
 
-const taskName = (dayNum, fullName) => `Rate day ${dayNum} of ${cfg.days_to_rate} - ${fullName}`;
+const taskName = (dayNum, fullName) => `New Hire: Rate day ${dayNum} of ${cfg.days_to_rate} - ${fullName}`;
 
 async function run() {
   const state = loadState();
@@ -80,7 +80,7 @@ async function run() {
         exp: Math.floor(new Date(days[i] + 'T00:00:00Z').getTime() / 1000) + 14 * 86400,
       });
       const link = `${APP_URL}/rate/${token}`;
-      const content = `How did ${emp.first_name}'s day ${dayNum} go? Rate it here (takes less than a minute): ${link}`;
+      const content = `How did ${emp.first_name}'s day ${dayNum} go? <a href="${link}">Rate it here</a> - takes less than a minute.`;
 
       if (existing) {
         // first-shift date changed: move due date + refresh link

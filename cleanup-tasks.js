@@ -9,7 +9,7 @@ async function main() {
     console.log('Dry run. Add --yes to actually discard the tasks.');
   }
   const tasks = (await api.getAll('tasks/tasks'))
-    .filter(t => /^Rate day \d+ of \d+ - /.test(t.name) && t.status === 'todo');
+    .filter(t => /^(New Hire: )?Rate day \d+ of \d+ - /.test(t.name) && t.status === 'todo');
   for (const t of tasks) {
     console.log(`${process.argv.includes('--yes') ? 'Discarding' : 'Would discard'}: ${t.id} ${t.name} (due ${t.due_on})`);
     if (process.argv.includes('--yes')) {
