@@ -124,6 +124,14 @@ const server = http.createServer(async (req, res) => {
       });
       return;
     }
+    if (req.method === 'GET' && req.url === '/logo.png') {
+      const p = path.join(__dirname, 'aro-logo.png');
+      if (fs.existsSync(p)) {
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+        return res.end(fs.readFileSync(p));
+      }
+      return json(res, 404, { error: 'no_logo' });
+    }
     if (req.method === 'GET' && req.url === '/health') return json(res, 200, { ok: true });
     page(res, 404, msgPage('Not found', ''));
   } catch (e) {
