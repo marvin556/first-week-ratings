@@ -48,7 +48,7 @@ const fmtShort = (iso) => new Date(iso + 'T00:00:00Z')
 // Task status per day, resolved live from Factorial by deterministic task name.
 async function dayStatuses(t, emp, flow, state) {
   const days = workingDays(t.f, cfg.days_to_rate);
-  const allTasks = await api.getAll('tasks/tasks', { assignee_id: cfg.assignee_access_id });
+  const allTasks = await api.getAll('tasks/tasks');
   const byName = new Map(allTasks.filter(x => x.status !== 'discarded').map(x => [x.name, x]));
   return days.map((date, i) => {
     const d = i + 1;
