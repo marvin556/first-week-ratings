@@ -46,8 +46,8 @@
     <div class="card">
       <div id="form-state">
         <span class="chip">DAY {{DAY}} OF {{TOTAL}} &middot; {{DATE}}</span>
-        <h1>How did {{NAME}}'s day go?</h1>
-        <p class="sub">You are rating day {{DAY}} of {{FIRST_NAME}}'s first week. Takes less than a minute.</p>
+        <h1>{{HEADING}}</h1>
+        <p class="sub">{{SUBTEXT}}</p>
         <div class="progress">{{PROGRESS}}</div>
         <div class="label">Rating</div>
         <div class="stars" id="stars">
@@ -62,7 +62,7 @@
         <textarea id="comment" placeholder="Anything worth noting about today?"></textarea>
         <div class="error" id="error">Something went wrong. Please try again.</div>
         <button class="btn" id="submit" disabled>Submit rating</button>
-        <div class="privacy">Your rating is stored securely and visible to HR only. It is not visible to {{FIRST_NAME}}.</div>
+        <div class="privacy">{{PRIVACY}}</div>
       </div>
       <div class="done-state" id="done-state">
         <div class="tick">&#10003;</div>

@@ -1,13 +1,25 @@
 {
   "company_id": "125058",
   "trigger_field_id": "2071076",
-  "schema_id": "7031",
-  "fields": {
-    "day": "2071252",
-    "date": "2071253",
-    "rating": "2071254",
-    "comment": "2071255",
-    "rated_by": "2071256"
+  "manager_rates_hire": {
+    "schema_id": "7031",
+    "fields": {
+      "day": "2071252",
+      "date": "2071253",
+      "rating": "2071254",
+      "comment": "2071255",
+      "rated_by": "2071256"
+    }
+  },
+  "hire_rates_manager": {
+    "schema_id": "7032",
+    "fields": {
+      "day": "2081499",
+      "date": "2081501",
+      "rating": "2081508",
+      "comment": "2081510",
+      "rated_by": "2081511"
+    }
   },
   "days_to_rate": 5,
   "task_category": "performance"

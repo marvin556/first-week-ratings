@@ -26,15 +26,27 @@ function json(res, status, obj) {
 }
 const msgPage = (title, text) => `<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;justify-content:center;padding-top:80px"><div style="text-align:center"><h2>${title}</h2><p style="color:#666">${text}</p></div></body></html>`;
 
+const flowKey = (t) => `${t.e}-${t.d}-${t.k || 'm'}`;
+
 async function handleForm(res, tokenStr) {
   const t = verify(tokenStr);
   if (!t) return page(res, 400, msgPage('Link invalid or expired', 'Ask HR to send you a new rating link.'));
 
   const state = loadState();
-  if (state.submitted[`${t.e}-${t.d}`]) {
+  if (state.submitted[flowKey(t)]) {
     return page(res, 200, msgPage('Already submitted', `Day ${t.d} was already rated. Thanks!`));
   }
   const emp = await api.get(`employees/employees/${t.e}`);
+  const hireFlow = t.k === 'h';
+  const texts = hireFlow ? {
+    heading: 'How did your manager support you today?',
+    sub: `Day ${t.d} of your first week, ${emp.first_name}. Your feedback helps us improve onboarding. Takes less than a minute.`,
+    privacy: 'Your rating is stored securely and visible to HR only. It is not visible to your manager.',
+  } : {
+    heading: `How did ${emp.full_name}'s day go?`,
+    sub: `You are rating day ${t.d} of ${emp.first_name}'s first week. Takes less than a minute.`,
+    privacy: `Your rating is stored securely and visible to HR only. It is not visible to ${emp.first_name}.`,
+  };
   const dateStr = new Date(t.date + 'T00:00:00Z')
     .toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
@@ -43,8 +55,9 @@ async function handleForm(res, tokenStr) {
     .replaceAll('{{DAY}}', String(t.d))
     .replaceAll('{{TOTAL}}', String(cfg.days_to_rate))
     .replaceAll('{{DATE}}', dateStr.toUpperCase())
-    .replaceAll('{{NAME}}', emp.full_name)
-    .replaceAll('{{FIRST_NAME}}', emp.first_name)
+    .replaceAll('{{HEADING}}', texts.heading)
+    .replaceAll('{{SUBTEXT}}', texts.sub)
+    .replaceAll('{{PRIVACY}}', texts.privacy)
     .replaceAll('{{PROGRESS}}', Array.from({ length: cfg.days_to_rate }, (_, i) =>
       `<i class="${i + 1 < t.d ? 'done' : i + 1 === t.d ? 'today' : ''}"></i>`).join(''));
   page(res, 200, html);
@@ -58,26 +71,30 @@ async function handleSubmit(res, body) {
   if (!(r >= 1 && r <= 5)) return json(res, 400, { error: 'invalid_rating' });
 
   const state = loadState();
-  const key = `${t.e}-${t.d}`;
+  const key = flowKey(t);
   if (state.submitted[key]) return json(res, 409, { error: 'already_submitted' });
 
   const manager = await api.get(`employees/employees/${t.m}`);
   const emp = await api.get(`employees/employees/${t.e}`);
+  const hireFlow = t.k === 'h';
+  // Both tables live on the new hire's profile. "Rated by"/"Manager" column:
+  // manager flow records who rated; hire flow records which manager is rated.
+  const flow = hireFlow ? cfg.hire_rates_manager : cfg.manager_rates_hire;
 
   // 1. Create the row for this day (one row per day). The first call creates the
   //    record; the remaining cells attach to it via custom_fields/values with
   //    valuable_type CustomResources::Value - posting more custom_resources/values
   //    would render as separate rows in the Factorial UI.
   const row = await api.post('custom_resources/values', {
-    schema_id: cfg.schema_id, employee_id: t.e, field_id: cfg.fields.day, value: `Day ${t.d}`,
+    schema_id: flow.schema_id, employee_id: t.e, field_id: flow.fields.day, value: `Day ${t.d}`,
   });
   const rowId = row.id;
   const cells = [
-    [cfg.fields.date, t.date],
-    [cfg.fields.rating, String(r)],
-    [cfg.fields.rated_by, manager.full_name],
+    [flow.fields.date, t.date],
+    [flow.fields.rating, String(r)],
+    [flow.fields.rated_by, manager.full_name],
   ];
-  if (comment && String(comment).trim()) cells.push([cfg.fields.comment, String(comment).trim().slice(0, 2000)]);
+  if (comment && String(comment).trim()) cells.push([flow.fields.comment, String(comment).trim().slice(0, 2000)]);
   for (const [field_id, value] of cells) {
     await api.post('custom_fields/values', {
       field_id, valuable_type: 'CustomResources::Value', valuable_id: String(rowId), value,
@@ -87,10 +104,11 @@ async function handleSubmit(res, body) {
   // 2. Mark the task done
   const taskRef = state.tasks[key];
   if (taskRef) {
+    const taskName = hireFlow
+      ? `First Week: Rate your manager, day ${t.d} of ${cfg.days_to_rate} - ${emp.full_name}`
+      : `New Hire: Rate day ${t.d} of ${cfg.days_to_rate} - ${emp.full_name}`;
     try {
-      await api.put(`tasks/tasks/${taskRef.taskId}`, {
-        name: `New Hire: Rate day ${t.d} of ${cfg.days_to_rate} - ${emp.full_name}`, status: 'done', due_on: t.date,
-      });
+      await api.put(`tasks/tasks/${taskRef.taskId}`, { name: taskName, status: 'done', due_on: t.date });
     } catch (e) { console.warn('Could not mark task done:', e.message); }
   }
 
