@@ -1,4 +1,6 @@
-// Rating form server: serves the form from the task link and writes submissions to Factorial.
+// Rating form server: multi-day page per flow; submissions and "no information
+// received" both write a row to the Factorial custom table and mark the day's
+// task as done. Task status in Factorial is the source of truth for what's open.
 // Run: node server.js   (default port 3141, override with PORT)
 const http = require('http');
 const fs = require('fs');
@@ -6,15 +8,27 @@ const path = require('path');
 const api = require('./factorial');
 const { verify } = require('./token');
 const cfg = require('./config.json');
+const { FLOWS } = require('./flows');
 
 const PORT = process.env.PORT || 3141;
 const STATE_FILE = process.env.STATE_FILE || path.join(__dirname, 'state.json');
 const FORM_TEMPLATE = fs.readFileSync(path.join(__dirname, 'form.html'), 'utf8');
 
 function loadState() {
-  try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return { tasks: {}, submitted: {} }; }
+  try { return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); } catch { return {}; }
 }
 function saveState(s) { fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2)); }
+
+function workingDays(start, count) {
+  const days = [];
+  const d = new Date(start + 'T00:00:00Z');
+  while (days.length < count) {
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6) days.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return days;
+}
 
 function page(res, status, html) {
   res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -26,93 +40,95 @@ function json(res, status, obj) {
 }
 const msgPage = (title, text) => `<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;justify-content:center;padding-top:80px"><div style="text-align:center"><h2>${title}</h2><p style="color:#666">${text}</p></div></body></html>`;
 
-const flowKey = (t) => `${t.e}-${t.d}-${t.k || 'm'}`;
+const fmtLong = (iso) => new Date(iso + 'T00:00:00Z')
+  .toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const fmtShort = (iso) => new Date(iso + 'T00:00:00Z')
+  .toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+// Task status per day, resolved live from Factorial by deterministic task name.
+async function dayStatuses(t, emp, flow, state) {
+  const days = workingDays(t.f, cfg.days_to_rate);
+  const allTasks = await api.getAll('tasks/tasks', { assignee_id: cfg.assignee_access_id });
+  const byName = new Map(allTasks.filter(x => x.status !== 'discarded').map(x => [x.name, x]));
+  return days.map((date, i) => {
+    const d = i + 1;
+    const key = `${t.e}-${d}-${t.k}`;
+    const sub = state.submitted && state.submitted[key];
+    const task = byName.get(flow.taskName(d, emp));
+    let status = 'open';
+    if (sub) status = sub.noInfo ? 'noinfo' : 'done';
+    else if (task && task.status === 'done') status = 'done';
+    return { d, date, dateShort: fmtShort(date), dateLong: fmtLong(date), status, taskId: task ? task.id : null };
+  });
+}
 
 async function handleForm(res, tokenStr) {
   const t = verify(tokenStr);
-  if (!t) return page(res, 400, msgPage('Link invalid or expired', 'Ask HR to send you a new rating link.'));
-
+  if (!t || !t.k || !t.f) return page(res, 400, msgPage('Link invalid or expired', 'Ask HR to send you a new rating link.'));
   const state = loadState();
-  if (state.submitted[flowKey(t)]) {
-    return page(res, 200, msgPage('Already submitted', `Day ${t.d} was already rated. Thanks!`));
-  }
   const emp = await api.get(`employees/employees/${t.e}`);
-  const hireFlow = t.k === 'h';
-  const texts = hireFlow ? {
-    heading: 'How did your manager support you today?',
-    sub: `Day ${t.d} of your first week, ${emp.first_name}. Your feedback helps us improve onboarding. Takes less than a minute.`,
-    privacy: 'Your rating is stored securely and visible to HR only. It is not visible to your manager.',
-  } : {
-    heading: `How did ${emp.full_name}'s day go?`,
-    sub: `You are rating day ${t.d} of ${emp.first_name}'s first week. Takes less than a minute.`,
-    privacy: `Your rating is stored securely and visible to HR only. It is not visible to ${emp.first_name}.`,
+  const flow = FLOWS[t.k];
+  const days = await dayStatuses(t, emp, flow, state);
+  const data = {
+    token: tokenStr,
+    chip: `${emp.full_name.toUpperCase()} · FIRST WEEK`,
+    texts: flow.texts(emp),
+    days: days.map(({ taskId, ...rest }) => rest),
   };
-  const dateStr = new Date(t.date + 'T00:00:00Z')
-    .toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-
-  const html = FORM_TEMPLATE
-    .replaceAll('{{TOKEN}}', tokenStr)
-    .replaceAll('{{DAY}}', String(t.d))
-    .replaceAll('{{TOTAL}}', String(cfg.days_to_rate))
-    .replaceAll('{{DATE}}', dateStr.toUpperCase())
-    .replaceAll('{{HEADING}}', texts.heading)
-    .replaceAll('{{SUBTEXT}}', texts.sub)
-    .replaceAll('{{PRIVACY}}', texts.privacy)
-    .replaceAll('{{PROGRESS}}', Array.from({ length: cfg.days_to_rate }, (_, i) =>
-      `<i class="${i + 1 < t.d ? 'done' : i + 1 === t.d ? 'today' : ''}"></i>`).join(''));
-  page(res, 200, html);
+  page(res, 200, FORM_TEMPLATE.replace('{{DATA}}', JSON.stringify(data)));
 }
 
-async function handleSubmit(res, body) {
-  const { token, rating, comment } = body;
-  const t = verify(token);
-  if (!t) return json(res, 400, { error: 'invalid_token' });
-  const r = Number(rating);
-  if (!(r >= 1 && r <= 5)) return json(res, 400, { error: 'invalid_rating' });
-
-  const state = loadState();
-  const key = flowKey(t);
-  if (state.submitted[key]) return json(res, 409, { error: 'already_submitted' });
-
-  const manager = await api.get(`employees/employees/${t.m}`);
-  const emp = await api.get(`employees/employees/${t.e}`);
-  const hireFlow = t.k === 'h';
-  // Both tables live on the new hire's profile. "Rated by"/"Manager" column:
-  // manager flow records who rated; hire flow records which manager is rated.
-  const flow = hireFlow ? cfg.hire_rates_manager : cfg.manager_rates_hire;
-
-  // 1. Create the row for this day (one row per day). The first call creates the
-  //    record; the remaining cells attach to it via custom_fields/values with
-  //    valuable_type CustomResources::Value - posting more custom_resources/values
-  //    would render as separate rows in the Factorial UI.
+async function writeRow(t, dayNum, date, fields, cells) {
   const row = await api.post('custom_resources/values', {
-    schema_id: flow.schema_id, employee_id: t.e, field_id: flow.fields.day, value: `Day ${t.d}`,
+    schema_id: fields.schema_id, employee_id: t.e, field_id: fields.fields.day, value: `Day ${dayNum}`,
   });
-  const rowId = row.id;
-  const cells = [
-    [flow.fields.date, t.date],
-    [flow.fields.rating, String(r)],
-    [flow.fields.rated_by, manager.full_name],
-  ];
-  if (comment && String(comment).trim()) cells.push([flow.fields.comment, String(comment).trim().slice(0, 2000)]);
-  for (const [field_id, value] of cells) {
+  for (const [field_id, value] of [[fields.fields.date, date], ...cells]) {
     await api.post('custom_fields/values', {
-      field_id, valuable_type: 'CustomResources::Value', valuable_id: String(rowId), value,
+      field_id, valuable_type: 'CustomResources::Value', valuable_id: String(row.id), value,
     });
   }
+  return row.id;
+}
 
-  // 2. Mark the task done
-  const taskRef = state.tasks[key];
-  if (taskRef) {
-    const taskName = hireFlow
-      ? `First Week: Rate your manager, day ${t.d} of ${cfg.days_to_rate} - ${emp.full_name}`
-      : `New Hire: Rate day ${t.d} of ${cfg.days_to_rate} - ${emp.full_name}`;
+async function handleWrite(res, body, noInfo) {
+  const { token, day, rating, comment } = body;
+  const t = verify(token);
+  if (!t || !t.k || !t.f) return json(res, 400, { error: 'invalid_token' });
+  const d = Number(day);
+  if (!(d >= 1 && d <= cfg.days_to_rate)) return json(res, 400, { error: 'invalid_day' });
+  const r = Number(rating);
+  if (!noInfo && !(r >= 1 && r <= 5)) return json(res, 400, { error: 'invalid_rating' });
+
+  const state = loadState();
+  const key = `${t.e}-${d}-${t.k}`;
+  if (state.submitted && state.submitted[key]) return json(res, 409, { error: 'already_submitted' });
+
+  const emp = await api.get(`employees/employees/${t.e}`);
+  const manager = await api.get(`employees/employees/${t.m}`);
+  const flow = FLOWS[t.k];
+  const flowCfg = cfg[flow.cfgKey];
+  const days = await dayStatuses(t, emp, flow, state);
+  const dayInfo = days.find(x => x.d === d);
+  if (!dayInfo || dayInfo.status !== 'open') return json(res, 409, { error: 'already_submitted' });
+
+  const cells = [[flowCfg.fields.rated_by, manager.full_name],
+                 [flowCfg.fields.status, noInfo ? 'No information received' : 'Submitted']];
+  if (!noInfo) {
+    cells.push([flowCfg.fields.rating, String(r)]);
+    if (comment && String(comment).trim()) cells.push([flowCfg.fields.comment, String(comment).trim().slice(0, 2000)]);
+  }
+  const rowId = await writeRow(t, d, dayInfo.date, flowCfg, cells);
+
+  if (dayInfo.taskId) {
     try {
-      await api.put(`tasks/tasks/${taskRef.taskId}`, { name: taskName, status: 'done', due_on: t.date });
+      await api.put(`tasks/tasks/${dayInfo.taskId}`, {
+        name: flow.taskName(d, emp), status: 'done', due_on: dayInfo.date,
+      });
     } catch (e) { console.warn('Could not mark task done:', e.message); }
   }
 
-  state.submitted[key] = { rowId, rating: r, at: new Date().toISOString() };
+  state.submitted = state.submitted || {};
+  state.submitted[key] = { rowId, rating: noInfo ? null : r, noInfo: !!noInfo, at: new Date().toISOString() };
   saveState(state);
   json(res, 200, { ok: true, rowId });
 }
@@ -120,13 +136,14 @@ async function handleSubmit(res, body) {
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url.startsWith('/rate/')) {
-      return await handleForm(res, decodeURIComponent(req.url.slice(6)));
+      return await handleForm(res, decodeURIComponent(req.url.slice(6).split('?')[0]));
     }
-    if (req.method === 'POST' && req.url === '/api/submit') {
+    if (req.method === 'POST' && (req.url === '/api/submit' || req.url === '/api/no-info')) {
+      const noInfo = req.url === '/api/no-info';
       let data = '';
       req.on('data', c => data += c);
       req.on('end', async () => {
-        try { await handleSubmit(res, JSON.parse(data)); }
+        try { await handleWrite(res, JSON.parse(data), noInfo); }
         catch (e) { console.error(e); json(res, 500, { error: 'server_error' }); }
       });
       return;

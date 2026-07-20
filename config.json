@@ -1,6 +1,7 @@
 {
   "company_id": "125058",
   "trigger_field_id": "2071076",
+  "assignee_access_id": "4131229",
   "manager_rates_hire": {
     "schema_id": "7031",
     "fields": {
@@ -8,7 +9,8 @@
       "date": "2071253",
       "rating": "2071254",
       "comment": "2071255",
-      "rated_by": "2071256"
+      "rated_by": "2071256",
+      "status": "2083541"
     }
   },
   "hire_rates_manager": {
@@ -18,7 +20,8 @@
       "date": "2081501",
       "rating": "2081508",
       "comment": "2081510",
-      "rated_by": "2081511"
+      "rated_by": "2081511",
+      "status": "2083542"
     }
   },
   "days_to_rate": 5,

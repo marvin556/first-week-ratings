@@ -3,105 +3,138 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Day rating - ARO Multiservices</title>
+<title>First week ratings - ARO Multiservices</title>
 <style>
-  :root { --accent:#FF355E; --accent-dark:#e02950; --ink:#1c1b29; --grey:#6f6e77; --line:#e9e8ee; --bg:#f7f6f9; }
+  :root { --accent:#FF355E; --accent-dark:#e02950; --ink:#1c1b29; --grey:#6f6e77; --line:#e9e8ee; --bg:#f7f6f9; --ok:#1e9e63; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; align-items:center; }
   .topbar { width:100%; background:#fff; border-bottom:1px solid var(--line); padding:14px 24px; display:flex; align-items:center; gap:10px; }
-  .logo-mark { width:26px; height:26px; border-radius:7px; background:var(--accent); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:15px; }
-  .topbar span { font-weight:700; font-size:15px; }
-  .wrap { width:100%; max-width:480px; padding:36px 20px 60px; }
-  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:32px 28px; box-shadow:0 6px 24px rgba(28,27,41,.06); }
+  .wrap { width:100%; max-width:520px; padding:30px 20px 60px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:0 6px 24px rgba(28,27,41,.06); }
   .chip { display:inline-block; background:#ffe9ee; color:var(--accent-dark); font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px; margin-bottom:14px; }
-  h1 { font-size:21px; line-height:1.3; margin-bottom:6px; }
-  .sub { color:var(--grey); font-size:14px; margin-bottom:26px; }
-  .progress { display:flex; gap:6px; margin-bottom:26px; }
-  .progress i { flex:1; height:5px; border-radius:3px; background:var(--line); }
-  .progress i.done { background:var(--accent); opacity:.35; }
-  .progress i.today { background:var(--accent); }
-  .label { font-size:14px; font-weight:600; margin-bottom:12px; }
-  .stars { display:flex; gap:8px; margin-bottom:8px; }
-  .star { width:52px; height:52px; border:1px solid var(--line); border-radius:12px; background:#fff; cursor:pointer; font-size:26px; color:#d4d3db; transition:all .12s ease; display:flex; align-items:center; justify-content:center; }
+  h1 { font-size:20px; line-height:1.3; margin-bottom:6px; }
+  .sub { color:var(--grey); font-size:14px; margin-bottom:20px; }
+  .tabs { display:flex; gap:6px; margin-bottom:22px; flex-wrap:wrap; }
+  .tab { flex:1; min-width:84px; border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 6px; font-size:13px; font-weight:600; cursor:pointer; text-align:center; color:var(--ink); }
+  .tab.active { border-color:var(--accent); background:#fff7f9; }
+  .tab .st { display:block; font-size:11px; font-weight:400; color:var(--grey); margin-top:2px; }
+  .tab.done .st { color:var(--ok); }
+  .tab.noinfo .st { color:#b3831d; }
+  .label { font-size:14px; font-weight:600; margin-bottom:10px; }
+  .stars { display:flex; gap:8px; margin-bottom:6px; }
+  .star { width:50px; height:50px; border:1px solid var(--line); border-radius:12px; background:#fff; cursor:pointer; font-size:25px; color:#d4d3db; transition:all .12s ease; display:flex; align-items:center; justify-content:center; }
   .star:hover { border-color:var(--accent); transform:translateY(-2px); }
   .star.on { color:#ffb400; border-color:var(--accent); background:#fff7f9; }
-  .star-caption { font-size:13px; color:var(--grey); height:18px; margin-bottom:22px; }
-  textarea { width:100%; border:1px solid var(--line); border-radius:12px; padding:12px 14px; font:inherit; font-size:14px; resize:vertical; min-height:84px; margin-bottom:22px; color:var(--ink); }
+  .star-caption { font-size:13px; color:var(--grey); height:18px; margin-bottom:18px; }
+  textarea { width:100%; border:1px solid var(--line); border-radius:12px; padding:12px 14px; font:inherit; font-size:14px; resize:vertical; min-height:74px; margin-bottom:18px; color:var(--ink); }
   textarea:focus { outline:none; border-color:var(--accent); }
-  .btn { width:100%; background:var(--accent); color:#fff; border:none; border-radius:12px; padding:14px; font-size:15px; font-weight:700; cursor:pointer; }
+  .btn { width:100%; background:var(--accent); color:#fff; border:none; border-radius:12px; padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
   .btn:hover { background:var(--accent-dark); }
   .btn:disabled { background:#f0aebd; cursor:not-allowed; }
-  .foot { text-align:center; font-size:12px; color:var(--grey); margin-top:18px; }
-  .done-state { text-align:center; display:none; padding:26px 0 10px; }
-  .done-state .tick { width:62px; height:62px; border-radius:50%; background:#ffe9ee; color:var(--accent); font-size:30px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:16px; }
-  .done-state h2 { font-size:19px; margin-bottom:6px; }
-  .done-state p { color:var(--grey); font-size:14px; }
+  .btn-ghost { width:100%; background:#fff; color:var(--grey); border:1px dashed var(--line); border-radius:12px; padding:11px; font-size:13px; font-weight:600; cursor:pointer; margin-top:10px; }
+  .btn-ghost:hover { border-color:var(--grey); color:var(--ink); }
+  .savedbox { text-align:center; padding:18px 0 6px; }
+  .savedbox .tick { width:54px; height:54px; border-radius:50%; background:#e8f6ef; color:var(--ok); font-size:26px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:12px; }
+  .savedbox.noinfo .tick { background:#faf3e0; color:#b3831d; }
+  .savedbox p { color:var(--grey); font-size:14px; }
   .privacy { margin-top:16px; font-size:12px; color:var(--grey); background:var(--bg); border-radius:10px; padding:10px 14px; line-height:1.5; }
+  .foot { text-align:center; font-size:12px; color:var(--grey); margin-top:18px; }
   .error { color:#c0392b; font-size:13px; margin-bottom:12px; display:none; }
+  .factorial-link { display:block; text-align:center; margin-top:18px; font-size:13px; color:var(--accent); text-decoration:none; font-weight:600; }
 </style>
 </head>
 <body>
   <div class="topbar"><img src="/logo.png" alt="ARO Multiservices" style="height:34px" onerror="this.outerHTML='<span style=&quot;font-family:Georgia,serif;font-weight:700;letter-spacing:2px;color:#1B2653&quot;>ARO <small style=&quot;letter-spacing:4px;font-weight:400&quot;>MULTISERVICES</small></span>'"></div>
   <div class="wrap">
     <div class="card">
-      <div id="form-state">
-        <span class="chip">DAY {{DAY}} OF {{TOTAL}} &middot; {{DATE}}</span>
-        <h1>{{HEADING}}</h1>
-        <p class="sub">{{SUBTEXT}}</p>
-        <div class="progress">{{PROGRESS}}</div>
-        <div class="label">Rating</div>
-        <div class="stars" id="stars">
-          <button class="star" data-v="1" aria-label="1 star">&#9733;</button>
-          <button class="star" data-v="2" aria-label="2 stars">&#9733;</button>
-          <button class="star" data-v="3" aria-label="3 stars">&#9733;</button>
-          <button class="star" data-v="4" aria-label="4 stars">&#9733;</button>
-          <button class="star" data-v="5" aria-label="5 stars">&#9733;</button>
-        </div>
-        <div class="star-caption" id="caption">&nbsp;</div>
-        <div class="label">Comment <span style="color:var(--grey);font-weight:400">(optional)</span></div>
-        <textarea id="comment" placeholder="Anything worth noting about today?"></textarea>
-        <div class="error" id="error">Something went wrong. Please try again.</div>
-        <button class="btn" id="submit" disabled>Submit rating</button>
-        <div class="privacy">{{PRIVACY}}</div>
-      </div>
-      <div class="done-state" id="done-state">
-        <div class="tick">&#10003;</div>
-        <h2>Day {{DAY}} saved</h2>
-        <p>Thanks! Your rating has been saved<br>and the task has been marked as done.</p>
-        <a class="btn" style="display:block;text-decoration:none;text-align:center;margin-top:22px" href="https://app.factorialhr.com/inbox/todo">Return to Factorial</a>
-      </div>
+      <span class="chip" id="chip"></span>
+      <h1 id="heading"></h1>
+      <p class="sub" id="sub"></p>
+      <div class="tabs" id="tabs"></div>
+      <div id="panel"></div>
+      <div class="privacy" id="privacy"></div>
+      <a class="factorial-link" href="https://app.factorialhr.com/inbox/todo">Return to Factorial &rarr;</a>
     </div>
     <div class="foot">ARO Multiservices &middot; delivered by Faqtic</div>
   </div>
 <script>
-  const captions = {1:"Poor day",2:"Below expectations",3:"Okay",4:"Good day",5:"Excellent day"};
-  let value = 0;
-  const stars = document.querySelectorAll('.star');
-  const submitBtn = document.getElementById('submit');
-  stars.forEach(s => s.addEventListener('click', () => {
-    value = +s.dataset.v;
-    stars.forEach(x => x.classList.toggle('on', +x.dataset.v <= value));
-    document.getElementById('caption').textContent = captions[value];
-    submitBtn.disabled = false;
-  }));
-  submitBtn.addEventListener('click', async () => {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
-    try {
-      const res = await fetch('/api/submit', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ token: "{{TOKEN}}", rating: value, comment: document.getElementById('comment').value }),
-      });
-      if (!res.ok) throw new Error('submit failed');
-      document.getElementById('form-state').style.display = 'none';
-      document.getElementById('done-state').style.display = 'block';
-    } catch (e) {
-      document.getElementById('error').style.display = 'block';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Submit rating';
-    }
+const DATA = {{DATA}};
+const captions = {1:"Poor",2:"Below expectations",3:"Okay",4:"Good",5:"Excellent"};
+let current = DATA.days.findIndex(d => d.status === 'open');
+if (current < 0) current = 0;
+const draft = {}; // per-day {rating, comment}
+
+document.getElementById('chip').textContent = DATA.chip;
+document.getElementById('heading').textContent = DATA.texts.heading;
+document.getElementById('sub').textContent = DATA.texts.sub;
+document.getElementById('privacy').textContent = DATA.texts.privacy;
+
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = '';
+  DATA.days.forEach((day, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (i === current ? ' active' : '') + (day.status === 'done' ? ' done' : day.status === 'noinfo' ? ' noinfo' : '');
+    b.innerHTML = `Day ${day.d}<span class="st">${day.status === 'done' ? 'Saved' : day.status === 'noinfo' ? 'No info' : day.dateShort}</span>`;
+    b.onclick = () => { current = i; render(); };
+    el.appendChild(b);
   });
+}
+
+function renderPanel() {
+  const day = DATA.days[current];
+  const p = document.getElementById('panel');
+  if (day.status === 'done') {
+    p.innerHTML = '<div class="savedbox"><div class="tick">&#10003;</div><p>Day ' + day.d + ' is saved and the task is marked as done.</p></div>';
+    return;
+  }
+  if (day.status === 'noinfo') {
+    p.innerHTML = '<div class="savedbox noinfo"><div class="tick">&mdash;</div><p>Day ' + day.d + ' is recorded as "no information received".</p></div>';
+    return;
+  }
+  const d = draft[day.d] = draft[day.d] || { rating: 0, comment: '' };
+  p.innerHTML = `
+    <div class="label">Rating for ${day.dateLong}</div>
+    <div class="stars">${[1,2,3,4,5].map(v => `<button class="star${v <= d.rating ? ' on' : ''}" data-v="${v}">&#9733;</button>`).join('')}</div>
+    <div class="star-caption">${d.rating ? captions[d.rating] : '&nbsp;'}</div>
+    <div class="label">Comment <span style="color:var(--grey);font-weight:400">(optional)</span></div>
+    <textarea id="comment" placeholder="Anything worth noting?">${d.comment}</textarea>
+    <div class="error" id="error">Something went wrong. Please try again.</div>
+    <button class="btn" id="submitBtn" ${d.rating ? '' : 'disabled'}>Save day ${day.d}</button>
+    <button class="btn-ghost" id="noInfoBtn">No information received for day ${day.d}</button>`;
+  p.querySelectorAll('.star').forEach(s => s.onclick = () => {
+    d.rating = +s.dataset.v; renderPanel();
+  });
+  p.querySelector('#comment').oninput = (e) => { d.comment = e.target.value; };
+  p.querySelector('#submitBtn').onclick = () => send('/api/submit', { rating: d.rating, comment: d.comment }, day, 'done');
+  p.querySelector('#noInfoBtn').onclick = () => {
+    if (confirm(`Record day ${day.d} as "no information received"? This marks the task as done.`)) {
+      send('/api/no-info', {}, day, 'noinfo');
+    }
+  };
+}
+
+async function send(url, body, day, newStatus) {
+  const btns = document.querySelectorAll('#panel button'); btns.forEach(b => b.disabled = true);
+  try {
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ token: DATA.token, day: day.d }, body)),
+    });
+    if (!res.ok) throw new Error('failed');
+    day.status = newStatus;
+    const next = DATA.days.findIndex(x => x.status === 'open');
+    if (next >= 0) current = next;
+    render();
+  } catch (e) {
+    const err = document.getElementById('error');
+    if (err) err.style.display = 'block';
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+function render() { renderTabs(); renderPanel(); }
+render();
 </script>
 </body>
 </html>
