@@ -21,22 +21,30 @@
   .tab.done .st { color:var(--ok); }
   .tab.noinfo .st { color:#b3831d; }
   .label { font-size:14px; font-weight:600; margin-bottom:10px; }
+  .datefield { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+  .datefield input { border:1px solid var(--line); border-radius:10px; padding:9px 12px; font:inherit; font-size:14px; color:var(--ink); }
+  .datefield input:focus { outline:none; border-color:var(--accent); }
   .stars { display:flex; gap:8px; margin-bottom:6px; }
   .star { width:50px; height:50px; border:1px solid var(--line); border-radius:12px; background:#fff; cursor:pointer; font-size:25px; color:#d4d3db; transition:all .12s ease; display:flex; align-items:center; justify-content:center; }
   .star:hover { border-color:var(--accent); transform:translateY(-2px); }
   .star.on { color:#ffb400; border-color:var(--accent); background:#fff7f9; }
+  .star.ro { cursor:default; }
+  .star.ro:hover { transform:none; border-color:var(--line); }
+  .star.ro.on { border-color:var(--line); background:#fff; }
   .star-caption { font-size:13px; color:var(--grey); height:18px; margin-bottom:18px; }
   textarea { width:100%; border:1px solid var(--line); border-radius:12px; padding:12px 14px; font:inherit; font-size:14px; resize:vertical; min-height:74px; margin-bottom:18px; color:var(--ink); }
   textarea:focus { outline:none; border-color:var(--accent); }
+  .readrow { font-size:14px; color:var(--ink); margin-bottom:14px; }
+  .readrow .k { color:var(--grey); font-size:12px; text-transform:uppercase; letter-spacing:.3px; display:block; margin-bottom:3px; }
   .btn { width:100%; background:var(--accent); color:#fff; border:none; border-radius:12px; padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
   .btn:hover { background:var(--accent-dark); }
   .btn:disabled { background:#f0aebd; cursor:not-allowed; }
   .btn-ghost { width:100%; background:#fff; color:var(--grey); border:1px dashed var(--line); border-radius:12px; padding:11px; font-size:13px; font-weight:600; cursor:pointer; margin-top:10px; }
   .btn-ghost:hover { border-color:var(--grey); color:var(--ink); }
-  .savedbox { text-align:center; padding:18px 0 6px; }
-  .savedbox .tick { width:54px; height:54px; border-radius:50%; background:#e8f6ef; color:var(--ok); font-size:26px; display:inline-flex; align-items:center; justify-content:center; margin-bottom:12px; }
-  .savedbox.noinfo .tick { background:#faf3e0; color:#b3831d; }
-  .savedbox p { color:var(--grey); font-size:14px; }
+  .btn-sec { width:100%; background:#fff; color:var(--accent); border:1px solid var(--accent); border-radius:12px; padding:11px; font-size:14px; font-weight:700; cursor:pointer; margin-top:10px; }
+  .statusline { display:inline-block; font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; margin-bottom:14px; }
+  .statusline.done { background:#e8f6ef; color:var(--ok); }
+  .statusline.noinfo { background:#faf3e0; color:#b3831d; }
   .privacy { margin-top:16px; font-size:12px; color:var(--grey); background:var(--bg); border-radius:10px; padding:10px 14px; line-height:1.5; }
   .foot { text-align:center; font-size:12px; color:var(--grey); margin-top:18px; }
   .error { color:#c0392b; font-size:13px; margin-bottom:12px; display:none; }
@@ -62,7 +70,8 @@ const DATA = {{DATA}};
 const captions = {1:"Poor",2:"Below expectations",3:"Okay",4:"Good",5:"Excellent"};
 let current = DATA.days.findIndex(d => d.status === 'open');
 if (current < 0) current = 0;
-const draft = {}; // per-day {rating, comment}
+const edit = {};   // per-day boolean: is this day being edited?
+const draft = {};  // per-day working copy {rating, comment, date}
 
 document.getElementById('chip').textContent = DATA.chip;
 document.getElementById('heading').textContent = DATA.texts.heading;
@@ -81,50 +90,99 @@ function renderTabs() {
   });
 }
 
+function stars(rating, readonly) {
+  return `<div class="stars">${[1,2,3,4,5].map(v =>
+    `<button class="star${readonly ? ' ro' : ''}${v <= rating ? ' on' : ''}" data-v="${v}">&#9733;</button>`).join('')}</div>`;
+}
+
+function editForm(day) {
+  const d = draft[day.d] = draft[day.d] || { rating: day.rating || 0, comment: day.comment || '', date: day.date };
+  return `
+    <div class="label">Date</div>
+    <div class="datefield"><input type="date" id="date" value="${d.date}"></div>
+    <div class="label">Rating</div>
+    ${stars(d.rating, false)}
+    <div class="star-caption">${d.rating ? captions[d.rating] : '&nbsp;'}</div>
+    <div class="label">Comment <span style="color:var(--grey);font-weight:400">(optional)</span></div>
+    <textarea id="comment" placeholder="Anything worth noting?">${d.comment || ''}</textarea>
+    <div class="error" id="error">Something went wrong. Please try again.</div>
+    <button class="btn" id="saveBtn" ${d.rating ? '' : 'disabled'}>Save day ${day.d}</button>
+    <button class="btn-ghost" id="noInfoBtn">No information received for day ${day.d}</button>
+    ${day.status !== 'open' ? `<button class="btn-ghost" id="cancelBtn">Cancel</button>` : ''}`;
+}
+
+function savedView(day) {
+  const statusLabel = day.status === 'noinfo'
+    ? '<span class="statusline noinfo">No information received</span>'
+    : '<span class="statusline done">Saved &middot; task marked done</span>';
+  const rating = day.status === 'done'
+    ? `<div class="readrow"><span class="k">Rating</span>${stars(day.rating, true)}<div class="star-caption">${day.rating ? captions[day.rating] : ''}</div></div>`
+    : '';
+  const comment = (day.status === 'done' && day.comment)
+    ? `<div class="readrow"><span class="k">Comment</span>${escapeHtml(day.comment)}</div>` : '';
+  return `
+    ${statusLabel}
+    <div class="readrow"><span class="k">Date</span>${day.dateLong}</div>
+    ${rating}${comment}
+    <button class="btn-sec" id="editBtn">Edit day ${day.d}</button>`;
+}
+
+function escapeHtml(s) { const p = document.createElement('p'); p.textContent = s; return p.innerHTML; }
+
 function renderPanel() {
   const day = DATA.days[current];
   const p = document.getElementById('panel');
-  if (day.status === 'done') {
-    p.innerHTML = '<div class="savedbox"><div class="tick">&#10003;</div><p>Day ' + day.d + ' is saved and the task is marked as done.</p></div>';
-    return;
-  }
-  if (day.status === 'noinfo') {
-    p.innerHTML = '<div class="savedbox noinfo"><div class="tick">&mdash;</div><p>Day ' + day.d + ' is recorded as "no information received".</p></div>';
-    return;
-  }
-  const d = draft[day.d] = draft[day.d] || { rating: 0, comment: '' };
-  p.innerHTML = `
-    <div class="label">Rating for ${day.dateLong}</div>
-    <div class="stars">${[1,2,3,4,5].map(v => `<button class="star${v <= d.rating ? ' on' : ''}" data-v="${v}">&#9733;</button>`).join('')}</div>
-    <div class="star-caption">${d.rating ? captions[d.rating] : '&nbsp;'}</div>
-    <div class="label">Comment <span style="color:var(--grey);font-weight:400">(optional)</span></div>
-    <textarea id="comment" placeholder="Anything worth noting?">${d.comment}</textarea>
-    <div class="error" id="error">Something went wrong. Please try again.</div>
-    <button class="btn" id="submitBtn" ${d.rating ? '' : 'disabled'}>Save day ${day.d}</button>
-    <button class="btn-ghost" id="noInfoBtn">No information received for day ${day.d}</button>`;
-  p.querySelectorAll('.star').forEach(s => s.onclick = () => {
-    d.rating = +s.dataset.v; renderPanel();
-  });
-  p.querySelector('#comment').oninput = (e) => { d.comment = e.target.value; };
-  p.querySelector('#submitBtn').onclick = () => send('/api/submit', { rating: d.rating, comment: d.comment }, day, 'done');
-  p.querySelector('#noInfoBtn').onclick = () => {
-    if (confirm(`Record day ${day.d} as "no information received"? This marks the task as done.`)) {
-      send('/api/no-info', {}, day, 'noinfo');
-    }
+  const editable = day.status === 'open' || edit[day.d];
+
+  if (!editable) { p.innerHTML = savedView(day); wireSaved(day, p); return; }
+  p.innerHTML = editForm(day);
+  wireEdit(day, p);
+}
+
+function wireSaved(day, p) {
+  p.querySelector('#editBtn').onclick = () => {
+    edit[day.d] = true;
+    draft[day.d] = { rating: day.rating || 0, comment: day.comment || '', date: day.date };
+    renderPanel();
   };
 }
 
-async function send(url, body, day, newStatus) {
+function wireEdit(day, p) {
+  const d = draft[day.d];
+  const isEdit = day.status !== 'open';  // editing an already-saved day
+  p.querySelectorAll('.star').forEach(s => s.onclick = () => { d.rating = +s.dataset.v; renderPanel(); });
+  p.querySelector('#date').onchange = (e) => { d.date = e.target.value; };
+  p.querySelector('#comment').oninput = (e) => { d.comment = e.target.value; };
+  p.querySelector('#saveBtn').onclick = () =>
+    send(isEdit ? '/api/update' : '/api/submit', { rating: d.rating, comment: d.comment, date: d.date }, day, 'done');
+  p.querySelector('#noInfoBtn').onclick = () => {
+    if (confirm(`Record day ${day.d} as "no information received"? This marks the task as done.`))
+      send(isEdit ? '/api/update' : '/api/no-info', { noInfo: true, date: d.date }, day, 'noinfo');
+  };
+  const cancel = p.querySelector('#cancelBtn');
+  if (cancel) cancel.onclick = () => { edit[day.d] = false; renderPanel(); };
+}
+
+async function send(endpoint, body, day, newStatus) {
   const btns = document.querySelectorAll('#panel button'); btns.forEach(b => b.disabled = true);
   try {
-    const res = await fetch(url, {
+    const res = await fetch(endpoint, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.assign({ token: DATA.token, day: day.d }, body)),
     });
     if (!res.ok) throw new Error('failed');
+    const out = await res.json();
     day.status = newStatus;
-    const next = DATA.days.findIndex(x => x.status === 'open');
-    if (next >= 0) current = next;
+    day.rating = body.noInfo ? 0 : (body.rating || 0);
+    day.comment = body.noInfo ? '' : (body.comment || '');
+    if (out.date) { day.date = out.date; day.dateShort = shortDate(out.date); day.dateLong = longDate(out.date); }
+    const wasEditing = edit[day.d];
+    edit[day.d] = false;
+    // After completing a fresh day, jump to the next open one; when editing, stay put.
+    if (!wasEditing) {
+      const next = DATA.days.findIndex(x => x.status === 'open');
+      if (next >= 0) current = next;
+    }
     render();
   } catch (e) {
     const err = document.getElementById('error');
@@ -132,6 +190,9 @@ async function send(url, body, day, newStatus) {
     btns.forEach(b => b.disabled = false);
   }
 }
+
+function shortDate(iso) { return new Date(iso+'T00:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'}); }
+function longDate(iso) { return new Date(iso+'T00:00:00Z').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}); }
 
 function render() { renderTabs(); renderPanel(); }
 render();
