@@ -151,7 +151,12 @@ function wireEdit(day, p) {
   const d = draft[day.d];
   const isEdit = day.status !== 'open';  // editing an already-saved day
   p.querySelectorAll('.star').forEach(s => s.onclick = () => { d.rating = +s.dataset.v; renderPanel(); });
-  p.querySelector('#date').onchange = (e) => { d.date = e.target.value; };
+  p.querySelector('#date').onchange = (e) => {
+    d.date = e.target.value;
+    // reflect the new date immediately in the day tile
+    day.date = d.date; day.dateShort = shortDate(d.date); day.dateLong = longDate(d.date);
+    renderTabs();
+  };
   p.querySelector('#comment').oninput = (e) => { d.comment = e.target.value; };
   p.querySelector('#saveBtn').onclick = () =>
     send(isEdit ? '/api/update' : '/api/submit', { rating: d.rating, comment: d.comment, date: d.date }, day, 'done');
