@@ -1,27 +1,27 @@
 {
-  "company_id": "125058",
-  "trigger_field_id": "2071076",
-  "assignee_access_id": "4131229",
+  "company_id": "366044",
+  "trigger_field_id": "7013729",
+  "assignee_access_id": "4162111",
   "manager_rates_hire": {
-    "schema_id": "7031",
+    "schema_id": "124852",
     "fields": {
-      "day": "2071252",
-      "date": "2071253",
-      "rating": "2071254",
-      "comment": "2071255",
-      "rated_by": "2071256",
-      "status": "2083541"
+      "day": "7014449",
+      "date": "7014450",
+      "rating": "7014451",
+      "comment": "7014452",
+      "rated_by": "7014453",
+      "status": "7014454"
     }
   },
   "hire_rates_manager": {
-    "schema_id": "7032",
+    "schema_id": "124853",
     "fields": {
-      "day": "2081499",
-      "date": "2081501",
-      "rating": "2081508",
-      "comment": "2081510",
-      "rated_by": "2081511",
-      "status": "2083542"
+      "day": "7014455",
+      "date": "7014456",
+      "rating": "7014457",
+      "comment": "7014458",
+      "rated_by": "7014459",
+      "status": "7014460"
     }
   },
   "days_to_rate": 5,
